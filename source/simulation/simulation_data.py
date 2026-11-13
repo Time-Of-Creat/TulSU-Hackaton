@@ -1,11 +1,12 @@
 import copy
 
-from source.simulation.objects.object import Object
+from source.simulation.instance import Instance
 
 
 class SimulationData:
     def __init__(self):
-        self.objects: list[Object] = list()
+        self.instance = Instance()
+        self.simulation_speed = 100
         self._default = copy.deepcopy(self.__dict__)
 
     def _snapshot(self):
@@ -14,3 +15,6 @@ class SimulationData:
 
     def reset(self):
         self.__dict__.update(copy.deepcopy(self._default))
+
+    def process_instance_step(self, dt):
+        self.instance.process_step(dt)

@@ -6,13 +6,18 @@ class Object:
     CONSUME_ROTATION_FROM_PARENTS = True
     CONSUME_POSITION_FROM_PARENTS = True
     UI_ICON_COLOR = "#777777"
-    def __init__(self, name: str, parent = None):
+
+    def __init__(self, name: str, parent=None):
         self.name = name
         self.parent: Object | None = parent
         self.children: list[Object] = []
 
         self.local_position = Coords2(0, 0)
         self.local_rotation_deg = 0
+
+    def process_step(self, dt: float):
+        for child in self.children:
+            child.process_step(dt)
 
     def get_global_position(self, consume_rotation=CONSUME_ROTATION_FROM_PARENTS):
         parent_global_position = Coords2(0, 0)
