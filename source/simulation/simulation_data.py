@@ -1,11 +1,11 @@
 import copy
 
-from source.simulation.objects.plane import Plane
+from source.simulation.objects.object import Object
 
 
 class SimulationData:
     def __init__(self):
-        self.plane = Plane()
+        self.objects: list[Object] = list()
         self._default = copy.deepcopy(self.__dict__)
 
     def _snapshot(self):
