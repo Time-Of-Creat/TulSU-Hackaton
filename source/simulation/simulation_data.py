@@ -6,7 +6,7 @@ from source.simulation.instance import Instance
 class SimulationData:
     def __init__(self):
         self.instance = Instance()
-        self.simulation_speed = 100
+        self.simulation_speed = 1.0
         self._default = copy.deepcopy(self.__dict__)
 
     def _snapshot(self):

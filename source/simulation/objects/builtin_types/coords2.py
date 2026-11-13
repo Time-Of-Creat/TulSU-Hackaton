@@ -25,12 +25,16 @@ class Coords2:
         if isinstance(other, Coords2):
             return Coords2(self.x + other.x, self.y + other.y)
 
+    def __sub__(self, other):
+        if isinstance(other, Coords2):
+            return Coords2(self.x - other.x, self.y - other.y)
+
     def __mul__(self, other):
         if isinstance(other, (int, float)):
             return Coords2(self.x * other, self.y * other)
 
     def __rmul__(self, other: float):
-        self.__mul__(other)
+        return self.__mul__(other)
 
     def __truediv__(self, scalar: float):
         if isinstance(scalar, (int, float)):

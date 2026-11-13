@@ -1,3 +1,4 @@
+import threading
 import time
 
 from source.simulation.simulation_data import SimulationData
@@ -9,6 +10,7 @@ class Simulation:
     def __init__(self):
         self.running: bool = False
         self.simulation_data: SimulationData = SimulationData()
+        self.lock = threading.Lock()
 
         self.frame_time = 1.0 / self.FPS
         self.fixed_dt = 1.0 / self.FPS
@@ -23,7 +25,8 @@ class Simulation:
 
     def reset_simulation(self):
         self.running = False
-        self.simulation_data.reset()
+        with self.lock:
+            self.simulation_data.reset()
 
     def _run(self):
         physics_accumulator = 0.0
@@ -34,7 +37,8 @@ class Simulation:
             real_dt = self._clamp_dt(frame_start - last_time)
             last_time = frame_start
 
-            physics_accumulator = self._step_physics(physics_accumulator + real_dt)
+            scaled_dt = real_dt * self.simulation_data.simulation_speed
+            physics_accumulator = self._step_physics(physics_accumulator + scaled_dt)
             self._limit_fps(frame_start)
 
     def _clamp_dt(self, real_dt: float) -> float:
@@ -42,11 +46,12 @@ class Simulation:
 
     def _step_physics(self, accumulator: float) -> float:
         steps = 0
-        while accumulator >= self.fixed_dt and steps < 5:
-            self.simulation_data.process_instance_step(self.fixed_dt)
+        while accumulator >= self.fixed_dt and steps < 20:
+            with self.lock:
+                self.simulation_data.process_instance_step(self.fixed_dt)
             accumulator -= self.fixed_dt
             steps += 1
-        return accumulator * self.simulation_data.simulation_speed
+        return accumulator
 
     def _limit_fps(self, frame_start: float):
         elapsed = time.perf_counter() - frame_start

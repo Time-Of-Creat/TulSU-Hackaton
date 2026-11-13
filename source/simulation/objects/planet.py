@@ -43,4 +43,3 @@ class Planet(Object):
         f = G * self.mass * other_planet.mass / (r * r)
 
         self.F = self.F + Coords2(f * d.x / r, f * d.y / r)
-        other_planet.F = other_planet.F + Coords2(-f * d.x / r, -f * d.y / r)

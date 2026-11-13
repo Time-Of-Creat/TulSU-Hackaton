@@ -24,7 +24,7 @@ class Object:
         if self.parent is not None:
             parent_global_position = self.parent.get_global_position(consume_rotation)
 
-        if consume_rotation:
+        if consume_rotation and self.parent is not None:
             rotated_local_pos = self.local_position.rotate(self.parent.local_rotation_deg)
         else:
             rotated_local_pos = self.local_position
