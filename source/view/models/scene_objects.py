@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Optional
 class SceneObject:
     id: str
     name: str
-    obj_type: str  # "planet" or "plane"
+    obj_type: str
     icon: str
     can_delete: bool
     properties: Dict[str, Any] = field(default_factory=dict)
@@ -70,7 +70,6 @@ class SceneModel:
         self._init_default_scene()
 
     def _init_default_scene(self):
-        # Default educational coordinate plane
         default_plane = PlaneItem(
             name="Плоскость XY",
             orientation="XY",
@@ -80,7 +79,6 @@ class SceneModel:
         )
         self._objects.append(default_plane)
 
-        # Preloaded planets (celestial bodies)
         sun = PlanetItem(
             name="Солнце",
             mass=1.989e30,

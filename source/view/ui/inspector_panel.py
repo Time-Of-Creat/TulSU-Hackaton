@@ -7,8 +7,8 @@ from source.view.controllers.simulation_controller import SimulationController
 
 class InspectorPanel(ttk.Frame):
     """
-    Right sector: Object Inspector / Settings panel.
-    Displays editable fields for the selected object from the hierarchy.
+    Правая панель свойств выбранного объекта.
+    Показывает редактируемые поля объекта из иерархии.
     """
     def __init__(self, parent, model: SceneModel, controller: SimulationController,
                  on_name_changed: Callable[[str, str], None], *args, **kwargs):
@@ -22,7 +22,6 @@ class InspectorPanel(ttk.Frame):
         self._build_ui()
 
     def _build_ui(self):
-        # Section Header
         header_frame = ttk.Frame(self)
         header_frame.pack(fill=tk.X, padx=4, pady=(4, 2))
 
@@ -33,7 +32,6 @@ class InspectorPanel(ttk.Frame):
         )
         lbl_title.pack(side=tk.LEFT)
 
-        # Scrollable container for dynamic properties
         self.canvas = tk.Canvas(self, highlightthickness=0, borderwidth=0)
         self.scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas.yview)
         self.content_frame = ttk.Frame(self.canvas)
@@ -57,7 +55,6 @@ class InspectorPanel(ttk.Frame):
         self.show_empty()
 
     def show_empty(self):
-        """Displays empty state when no object is selected."""
         self.current_obj = None
         self._clear_content()
 
@@ -70,7 +67,6 @@ class InspectorPanel(ttk.Frame):
         lbl_placeholder.pack(pady=40, padx=10, fill=tk.X)
 
     def load_object(self, obj: Optional[SceneObject]):
-        """Renders editable inspector fields for selected object."""
         if not obj:
             self.show_empty()
             return
@@ -79,7 +75,6 @@ class InspectorPanel(ttk.Frame):
         self._clear_content()
         self._entries.clear()
 
-        # Object Header Summary
         type_str = "Планета / Тело" if obj.obj_type == "planet" else "Координатная плоскость"
         summary_frame = ttk.LabelFrame(self.content_frame, text="Идентификация", padding=6)
         summary_frame.pack(fill=tk.X, padx=6, pady=(4, 6))
@@ -96,7 +91,6 @@ class InspectorPanel(ttk.Frame):
             font=("Segoe UI", 8)
         ).pack(anchor=tk.W, pady=(2, 0))
 
-        # Render property forms based on object type
         if obj.obj_type == "plane":
             self._render_plane_properties(obj)
         else:
@@ -105,7 +99,6 @@ class InspectorPanel(ttk.Frame):
     def _render_plane_properties(self, obj: SceneObject):
         p = obj.properties
 
-        # Group: General
         grp_gen = ttk.LabelFrame(self.content_frame, text="Параметры сетки", padding=6)
         grp_gen.pack(fill=tk.X, padx=6, pady=4)
 
@@ -119,7 +112,6 @@ class InspectorPanel(ttk.Frame):
     def _render_planet_properties(self, obj: SceneObject):
         p = obj.properties
 
-        # Group: General
         grp_gen = ttk.LabelFrame(self.content_frame, text="Основные свойства", padding=6)
         grp_gen.pack(fill=tk.X, padx=6, pady=4)
 
@@ -127,14 +119,12 @@ class InspectorPanel(ttk.Frame):
         self._add_text_field(grp_gen, "Цвет (HEX):", "color", str(p.get("color", "#4A90E2")))
         self._add_check_field(grp_gen, "Статичный объект (неподвижен)", "is_fixed", bool(p.get("is_fixed", False)))
 
-        # Group: Physics
         grp_phys = ttk.LabelFrame(self.content_frame, text="Физические параметры", padding=6)
         grp_phys.pack(fill=tk.X, padx=6, pady=4)
 
         self._add_number_field(grp_phys, "Масса (кг):", "mass", p.get("mass", 1.0))
         self._add_number_field(grp_phys, "Радиус (км):", "radius", p.get("radius", 1.0))
 
-        # Group: Coordinates
         grp_pos = ttk.LabelFrame(self.content_frame, text="Координаты (X, Y, Z)", padding=6)
         grp_pos.pack(fill=tk.X, padx=6, pady=4)
 
@@ -142,7 +132,6 @@ class InspectorPanel(ttk.Frame):
         self._add_number_field(grp_pos, "Позиция Y:", "pos_y", p.get("pos_y", 0.0))
         self._add_number_field(grp_pos, "Позиция Z:", "pos_z", p.get("pos_z", 0.0))
 
-        # Group: Velocities
         grp_vel = ttk.LabelFrame(self.content_frame, text="Скорость (Vx, Vy, Vz)", padding=6)
         grp_vel.pack(fill=tk.X, padx=6, pady=4)
 

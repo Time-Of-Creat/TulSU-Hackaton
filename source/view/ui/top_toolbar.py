@@ -5,8 +5,8 @@ from source.view.controllers.simulation_controller import SimulationController
 
 class TopToolbar(ttk.Frame):
     """
-    Top toolbar component containing File menu, Run/Reset toggle, and Pause button.
-    Strict, academic software aesthetic.
+    Верхняя панель с меню файлов, запуском, сбросом и паузой.
+    Строгий академический стиль интерфейса.
     """
     def __init__(self, parent, controller: SimulationController, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
@@ -16,7 +16,6 @@ class TopToolbar(ttk.Frame):
     def _build_ui(self):
         self.configure(padding=(6, 4))
 
-        # --- File Menu Button ---
         self.file_menu = tk.Menu(self, tearoff=0)
         self.file_menu.add_command(
             label="Сохранить",
@@ -43,11 +42,8 @@ class TopToolbar(ttk.Frame):
         )
         self.btn_file.pack(side=tk.LEFT, padx=(2, 8))
 
-        # Separator
         ttk.Separator(self, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=4, pady=2)
 
-        # --- Run / Reset Button ---
-        # When idle: "▶ Запуск". When running: "⏹ Сброс"
         self.btn_run_reset = ttk.Button(
             self,
             text="▶ Запуск",
@@ -56,7 +52,6 @@ class TopToolbar(ttk.Frame):
         )
         self.btn_run_reset.pack(side=tk.LEFT, padx=4)
 
-        # --- Pause Button ---
         self.btn_pause = ttk.Button(
             self,
             text="⏸ Пауза",
@@ -66,10 +61,8 @@ class TopToolbar(ttk.Frame):
         )
         self.btn_pause.pack(side=tk.LEFT, padx=4)
 
-        # Separator
         ttk.Separator(self, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=6, pady=2)
 
-        # --- State Indicator Badge ---
         self.lbl_state = ttk.Label(
             self,
             text="Готов к запуску",

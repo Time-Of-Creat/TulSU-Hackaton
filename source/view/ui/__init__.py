@@ -1,5 +1,5 @@
 """
-UI package for Educational Simulation Suite
+Пакет компонентов пользовательского интерфейса.
 """
 from source.view.ui.main_window import MainWindow
 from source.view.ui.hierarchy_panel import HierarchyPanel

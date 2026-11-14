@@ -11,13 +11,8 @@ from source.view.ui.inspector_panel import InspectorPanel
 
 class MainWindow(tk.Tk):
     """
-    Main Application Window.
-    Provides strict educational laboratory interface layout:
-    - Top toolbar: File menu, Run/Reset, Pause.
-    - Left sector: Object hierarchy.
-    - Center sector: Simulation area (reserved for Max).
-    - Right sector: Inspector/settings panel.
-    - Bottom: Status bar.
+    Главное окно приложения с панелью инструментов,
+    иерархией объектов, симуляцией, инспектором и строкой состояния.
     """
     def __init__(self, controller: Optional[SimulationController] = None):
         super().__init__()
@@ -26,10 +21,8 @@ class MainWindow(tk.Tk):
         self.geometry("1120x720")
         self.minsize(850, 520)
 
-        # Apply strict educational styling
         self._setup_styles()
 
-        # Instantiate Models & Controllers
         self.model = SceneModel()
         if controller is not None:
             self.controller = controller
@@ -39,7 +32,6 @@ class MainWindow(tk.Tk):
 
         self._build_layout()
 
-        # Connect callbacks
         self.controller.notify_status("Готов к работе. Выберите объект или запустите симуляцию.")
 
     def _setup_styles(self):
@@ -49,7 +41,6 @@ class MainWindow(tk.Tk):
         except tk.TclError:
             pass
 
-        # Configure strict educational palette and fonts
         base_font = ("Segoe UI", 9)
         self.style.configure(".", font=base_font)
         self.style.configure("TLabel", font=base_font)
@@ -60,13 +51,11 @@ class MainWindow(tk.Tk):
         self.style.configure("Status.TLabel", font=("Segoe UI", 8))
 
     def _build_layout(self):
-        # 1. Top Segment: Toolbar
         self.toolbar = TopToolbar(self, controller=self.controller)
         self.toolbar.pack(side=tk.TOP, fill=tk.X)
 
         ttk.Separator(self, orient=tk.HORIZONTAL).pack(side=tk.TOP, fill=tk.X)
 
-        # 2. Bottom Segment: Status Bar
         self.status_bar = ttk.Frame(self, relief=tk.SUNKEN, padding=(6, 3))
         self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
@@ -84,11 +73,9 @@ class MainWindow(tk.Tk):
         )
         self.lbl_object_count.pack(side=tk.RIGHT, padx=8)
 
-        # 3. Main Workspace: Horizontal PanedWindow (3 Sectors)
         self.paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
         self.paned.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        # Left Sector: Hierarchy
         self.panel_left = ttk.Frame(self.paned, width=240)
         self.hierarchy_panel = HierarchyPanel(
             self.panel_left,
@@ -99,13 +86,14 @@ class MainWindow(tk.Tk):
         self.hierarchy_panel.pack(fill=tk.BOTH, expand=True)
         self.paned.add(self.panel_left, weight=1)
 
-        # Center Sector: Simulation View (Max's workspace)
         self.panel_center = ttk.Frame(self.paned, width=580)
-        self.simulation_view = SimulationView(self.panel_center)
+        self.simulation_view = SimulationView(
+            self.panel_center,
+            backend=getattr(self.controller, "backend", None)
+        )
         self.simulation_view.pack(fill=tk.BOTH, expand=True)
         self.paned.add(self.panel_center, weight=3)
 
-        # Right Sector: Inspector / Object Settings
         self.panel_right = ttk.Frame(self.paned, width=280)
         self.inspector_panel = InspectorPanel(
             self.panel_right,
@@ -117,12 +105,10 @@ class MainWindow(tk.Tk):
         self.paned.add(self.panel_right, weight=1)
 
     def _on_hierarchy_selection(self, obj):
-        """Dispatches selected object from hierarchy to inspector."""
         self.inspector_panel.load_object(obj)
         self._update_object_count()
 
     def _on_object_renamed(self, obj_id: str, new_name: str):
-        """Synchronizes name modification with hierarchy tree item."""
         self.hierarchy_panel.update_item_name(obj_id, new_name)
 
     def _update_object_count(self):

@@ -7,9 +7,9 @@ from source.view.controllers.simulation_controller import SimulationController
 
 class HierarchyPanel(ttk.Frame):
     """
-    Left sector: Object hierarchy treeview (game engine style).
-    Supports adding/removing coordinate planes (Plane), selecting objects,
-    and shows context menus. Adding/removing planets is strictly forbidden.
+    Иерархия объектов в стиле игрового движка.
+    Поддерживает добавление и удаление координатных плоскостей,
+    выбор объектов и контекстное меню.
     """
     def __init__(self, parent, model: SceneModel, controller: SimulationController,
                  on_select_callback: Callable[[Optional[SceneObject]], None], *args, **kwargs):
@@ -23,7 +23,6 @@ class HierarchyPanel(ttk.Frame):
         self.refresh_tree()
 
     def _build_ui(self):
-        # Section Header
         header_frame = ttk.Frame(self)
         header_frame.pack(fill=tk.X, padx=4, pady=(4, 2))
 
@@ -34,7 +33,6 @@ class HierarchyPanel(ttk.Frame):
         )
         lbl_title.pack(side=tk.LEFT)
 
-        # Quick Add Button for Plane
         btn_add_plane = ttk.Button(
             header_frame,
             text="+ Plane",
@@ -43,7 +41,6 @@ class HierarchyPanel(ttk.Frame):
         )
         btn_add_plane.pack(side=tk.RIGHT)
 
-        # Treeview Container
         tree_frame = ttk.Frame(self)
         tree_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=2)
 
@@ -58,22 +55,18 @@ class HierarchyPanel(ttk.Frame):
         self.tree.column("#0", stretch=True, minwidth=140, width=170)
         self.tree.column("type", stretch=False, minwidth=70, width=80)
 
-        # Scrollbar
         scroll_y = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscrollcommand=scroll_y.set)
 
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Event Bindings
         self.tree.bind("<<TreeviewSelect>>", self._on_tree_select)
         self.tree.bind("<Button-3>", self._on_right_click)
 
-        # Context Menu
         self.context_menu = tk.Menu(self, tearoff=0)
 
     def refresh_tree(self, select_id: Optional[str] = None):
-        """Populates the treeview with current model objects."""
         self.tree.delete(*self.tree.get_children())
         all_objects = self.model.get_all()
 
@@ -95,13 +88,11 @@ class HierarchyPanel(ttk.Frame):
             self.tree.selection_set(target_item)
             self.tree.focus(target_item)
         elif all_objects and not self.selected_obj_id:
-            # Default select first object
             first_id = all_objects[0].id
             self.tree.selection_set(first_id)
             self.tree.focus(first_id)
 
     def update_item_name(self, obj_id: str, new_name: str):
-        """Update display name in treeview without full re-render."""
         obj = self.model.get_by_id(obj_id)
         if obj and self.tree.exists(obj_id):
             self.tree.item(obj_id, text=f"{obj.icon}  {new_name}")
@@ -118,19 +109,16 @@ class HierarchyPanel(ttk.Frame):
             self.on_select_callback(None)
 
     def _on_right_click(self, event):
-        """Handles context menu on objects or empty space."""
         row_id = self.tree.identify_row(event.y)
         self.context_menu.delete(0, tk.END)
 
         if row_id:
-            # Clicked on an item
             self.tree.selection_set(row_id)
             self.tree.focus(row_id)
             self.selected_obj_id = row_id
             obj = self.model.get_by_id(row_id)
             self.on_select_callback(obj)
 
-            # Submenu to add plane
             plane_menu = tk.Menu(self.context_menu, tearoff=0)
             plane_menu.add_command(label="Плоскость XY", command=lambda: self._add_plane_action("XY"))
             plane_menu.add_command(label="Плоскость XZ", command=lambda: self._add_plane_action("XZ"))
@@ -150,7 +138,6 @@ class HierarchyPanel(ttk.Frame):
                     state=tk.DISABLED
                 )
         else:
-            # Clicked on empty area
             plane_menu = tk.Menu(self.context_menu, tearoff=0)
             plane_menu.add_command(label="Плоскость XY", command=lambda: self._add_plane_action("XY"))
             plane_menu.add_command(label="Плоскость XZ", command=lambda: self._add_plane_action("XZ"))
@@ -174,7 +161,6 @@ class HierarchyPanel(ttk.Frame):
             self.selected_obj_id = None
             self.refresh_tree()
             self.controller.on_plane_removed(plane_id)
-            # Re-select current or first item
             sel = self.tree.selection()
             if sel:
                 self.on_select_callback(self.model.get_by_id(sel[0]))

@@ -1,5 +1,5 @@
 """
-View package for Educational Simulation Suite
+Пакет интерфейса образовательного симулятора.
 """
 from source.view.ui.main_window import MainWindow
 
