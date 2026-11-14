@@ -21,6 +21,7 @@ class SimulationView(ttk.Frame):
         super().__init__(parent, *args, **kwargs)
         self.backend = backend
         self._last_snapshot: List[Dict[str, Any]] = []
+        self._configuration = None
         self._refresh_job = None
         self._build_ui()
         self._schedule_refresh()
@@ -56,6 +57,7 @@ class SimulationView(ttk.Frame):
 
     def _refresh(self):
         self._last_snapshot = self._read_backend_snapshot()
+        self._configuration = self._read_configuration()
         self._draw_scene(self._last_snapshot)
         self._schedule_refresh()
 
@@ -75,6 +77,23 @@ class SimulationView(ttk.Frame):
 
         with lock:
             return self._snapshot_objects(instance)
+
+    def _read_configuration(self):
+        if self.backend is None:
+            return None
+
+        def read_result():
+            data = getattr(self.backend, "simulation_data", None)
+            result = getattr(data, "detection_result", None)
+            if result is None:
+                return None
+            return result.title, result.color
+
+        lock = getattr(self.backend, "lock", None)
+        if lock is None:
+            return read_result()
+        with lock:
+            return read_result()
 
     def _snapshot_objects(self, instance) -> List[Dict[str, Any]]:
         result: List[Dict[str, Any]] = []
@@ -154,11 +173,11 @@ class SimulationView(ttk.Frame):
                 fill="#9a9aa8",
                 font=("Segoe UI", 10, "bold")
             )
-            self.status_label.configure(text="Статус: нет объектов")
+        if self._configuration:
+            title, color = self._configuration
+            self.status_label.configure(text=f"Конфигурация: {title}", foreground=color)
         else:
-            self.status_label.configure(
-                text=f"Объектов визуализации: {len(objects)}"
-            )
+            self.status_label.configure(text="Конфигурация: ожидание данных", foreground="")
 
     def _draw_grid(self, width, height, cx, cy):
         step = 40
@@ -202,7 +221,7 @@ class SimulationView(ttk.Frame):
 
     @staticmethod
     def _format_number(value: float) -> str:
-        if abs(value) >= 1000 or value.is_integer():
+        if abs(value) >= 1000 or float(value).is_integer():
             return f"{value:.0f}"
         return f"{value:.2f}"
 
