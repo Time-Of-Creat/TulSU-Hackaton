@@ -1,158 +1,144 @@
 import uuid
-from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional
+from source.simulation.objects.object import Object
+from source.simulation.objects.planet import Planet
+from source.simulation.objects.plane import Plane
+from source.simulation.instance import Instance
 
-
-@dataclass
-class SceneObject:
-    id: str
-    name: str
-    obj_type: str
-    icon: str
-    can_delete: bool
-    properties: Dict[str, Any] = field(default_factory=dict)
-
-
-class PlanetItem(SceneObject):
-    def __init__(self, name: str, mass: float, radius: float,
-                 pos_x: float, pos_y: float, pos_z: float,
-                 vel_x: float = 0.0, vel_y: float = 0.0, vel_z: float = 0.0,
-                 color: str = "#4A90E2", is_fixed: bool = False,
-                 icon: str = "🌍"):
-        super().__init__(
-            id=str(uuid.uuid4())[:8],
-            name=name,
-            obj_type="planet",
-            icon=icon,
-            can_delete=False,
-            properties={
-                "name": name,
-                "mass": mass,
-                "radius": radius,
-                "pos_x": pos_x,
-                "pos_y": pos_y,
-                "pos_z": pos_z,
-                "vel_x": vel_x,
-                "vel_y": vel_y,
-                "vel_z": vel_z,
-                "color": color,
-                "is_fixed": is_fixed
-            }
-        )
-
-
-class PlaneItem(SceneObject):
-    def __init__(self, name: str, orientation: str = "XY",
-                 grid_step: float = 10.0, grid_size: float = 100.0,
-                 line_color: str = "#7A8288", is_visible: bool = True,
-                 icon: str = "📐"):
-        super().__init__(
-            id=str(uuid.uuid4())[:8],
-            name=name,
-            obj_type="plane",
-            icon=icon,
-            can_delete=True,
-            properties={
-                "name": name,
-                "orientation": orientation,
-                "grid_step": grid_step,
-                "grid_size": grid_size,
-                "line_color": line_color,
-                "is_visible": is_visible
-            }
-        )
+# Compatibility aliases
+SceneObject = Object
+PlanetItem = Planet
+PlaneItem = Plane
 
 
 class SceneModel:
-    def __init__(self):
-        self._objects: List[SceneObject] = []
-        self._plane_counter = 1
-        self._init_default_scene()
+    """
+    Модель сцены, связывающая объекты визуализации и симуляции с графическим интерфейсом.
+    Управляет объектами симуляции (Instance), их иерархией и свойствами.
+    """
+    def __init__(self, backend=None):
+        self.backend = backend
+        self._fallback_instance: Optional[Instance] = None
+        self._plane_counter = 2
 
-    def _init_default_scene(self):
-        default_plane = PlaneItem(
-            name="Плоскость XY",
-            orientation="XY",
-            grid_step=20.0,
-            grid_size=200.0,
-            line_color="#6c757d"
-        )
-        self._objects.append(default_plane)
+    @property
+    def instance(self) -> Instance:
+        if self.backend and hasattr(self.backend, "simulation_data"):
+            return self.backend.simulation_data.instance
+        if self._fallback_instance is None:
+            self._fallback_instance = Instance()
+        return self._fallback_instance
 
-        sun = PlanetItem(
-            name="Солнце",
-            mass=1.989e30,
-            radius=696340.0,
-            pos_x=0.0,
-            pos_y=0.0,
-            pos_z=0.0,
-            vel_x=0.0,
-            vel_y=0.0,
-            vel_z=0.0,
-            color="#FFB703",
-            is_fixed=True,
-            icon="🌍"
-        )
-        earth = PlanetItem(
-            name="Земля",
-            mass=5.972e24,
-            radius=6371.0,
-            pos_x=149.6,
-            pos_y=0.0,
-            pos_z=0.0,
-            vel_x=0.0,
-            vel_y=29.78,
-            vel_z=0.0,
-            color="#219EBC",
-            is_fixed=False,
-            icon="🌍"
-        )
-        mars = PlanetItem(
-            name="Марс",
-            mass=6.417e23,
-            radius=3389.0,
-            pos_x=227.9,
-            pos_y=0.0,
-            pos_z=0.0,
-            vel_x=0.0,
-            vel_y=24.07,
-            vel_z=0.0,
-            color="#FB8500",
-            is_fixed=False,
-            icon="🌍"
-        )
+    def get_root_objects(self) -> List[Object]:
+        """Возвращает объекты верхнего уровня сцены."""
+        lock = getattr(self.backend, "lock", None)
+        if lock:
+            with lock:
+                return list(self.instance.objects)
+        return list(self.instance.objects)
 
-        self._objects.extend([sun, earth, mars])
+    def get_all(self) -> List[Object]:
+        """Возвращает все объекты сцены (включая дочерние)."""
+        lock = getattr(self.backend, "lock", None)
+        if lock:
+            with lock:
+                return list(self.instance.get_all_objects())
+        return list(self.instance.get_all_objects())
 
-    def get_all(self) -> List[SceneObject]:
-        return list(self._objects)
+    def get_by_id(self, obj_id: str) -> Optional[Object]:
+        """Поиск объекта по его уникальному ID."""
+        lock = getattr(self.backend, "lock", None)
+        if lock:
+            with lock:
+                return self.instance.get_object_by_id(obj_id)
+        return self.instance.get_object_by_id(obj_id)
 
-    def get_by_id(self, obj_id: str) -> Optional[SceneObject]:
-        for obj in self._objects:
-            if obj.id == obj_id:
-                return obj
-        return None
-
-    def add_plane(self, orientation: str = "XY") -> PlaneItem:
+    def add_plane(self, orientation: str = "XY", parent_id: Optional[str] = None) -> Plane:
+        """Добавляет координатную систему в сцену или как дочерний объект."""
         self._plane_counter += 1
-        name = f"Плоскость {orientation} #{self._plane_counter}"
-        plane = PlaneItem(name=name, orientation=orientation)
-        self._objects.append(plane)
-        return plane
+        name = f"Координатная система #{self._plane_counter}"
+        lock = getattr(self.backend, "lock", None)
+        if lock:
+            with lock:
+                plane = self.instance.add_plane(name=name, orientation=orientation, parent_id=parent_id)
+                self._update_backend_snapshot()
+                return plane
+        else:
+            plane = self.instance.add_plane(name=name, orientation=orientation, parent_id=parent_id)
+            self._update_backend_snapshot()
+            return plane
 
     def remove_object(self, obj_id: str) -> bool:
+        """Удаляет объект из сцены, если его удаление разрешено."""
         obj = self.get_by_id(obj_id)
-        if obj and obj.can_delete:
-            self._objects = [o for o in self._objects if o.id != obj_id]
-            return True
-        return False
+        if not obj or not getattr(obj, "can_delete", True):
+            return False
+
+        lock = getattr(self.backend, "lock", None)
+        if lock:
+            with lock:
+                success = self.instance.remove_object(obj_id)
+                self._update_backend_snapshot()
+                return success
+        else:
+            success = self.instance.remove_object(obj_id)
+            self._update_backend_snapshot()
+            return success
 
     def update_property(self, obj_id: str, key: str, value: Any) -> bool:
-        obj = self.get_by_id(obj_id)
+        """Обновляет свойство объекта и синхронизирует снимок дефолтного состояния."""
+        lock = getattr(self.backend, "lock", None)
+        if lock:
+            with lock:
+                return self._apply_property_update(obj_id, key, value)
+        return self._apply_property_update(obj_id, key, value)
+
+    def _apply_property_update(self, obj_id: str, key: str, value: Any) -> bool:
+        obj = self.instance.get_object_by_id(obj_id)
         if not obj:
             return False
 
-        obj.properties[key] = value
-        if key == "name":
-            obj.name = str(value)
-        return True
+        try:
+            if key == "name":
+                obj.name = str(value)
+            elif key == "pos_x":
+                obj.local_position.x = float(value)
+            elif key == "pos_y":
+                obj.local_position.y = float(value)
+            elif key == "vel_x" and hasattr(obj, "velocity"):
+                obj.velocity.x = float(value)
+            elif key == "vel_y" and hasattr(obj, "velocity"):
+                obj.velocity.y = float(value)
+            elif key == "mass" and hasattr(obj, "mass"):
+                obj.mass = max(float(value), 0.0)
+            elif key == "density" and hasattr(obj, "density"):
+                obj.density = max(float(value), 1e-6)
+            elif key == "is_fixed":
+                obj.is_fixed = bool(value)
+            elif key == "color":
+                obj.color = str(value)
+            elif key == "orientation":
+                obj.orientation = str(value)
+            elif key == "grid_step":
+                obj.grid_step = max(float(value), 0.1)
+            elif key == "grid_size":
+                obj.grid_size = max(float(value), 1.0)
+            elif key == "line_color":
+                obj.line_color = str(value)
+            elif key == "is_visible":
+                obj.is_visible = bool(value)
+            elif key == "rotation":
+                obj.local_rotation_deg = float(value)
+            else:
+                setattr(obj, key, value)
+
+            self._update_backend_snapshot()
+            return True
+        except (ValueError, TypeError):
+            return False
+
+    def _update_backend_snapshot(self):
+        if self.backend and not getattr(self.backend, "running", False):
+            sim_data = getattr(self.backend, "simulation_data", None)
+            if sim_data and hasattr(sim_data, "_snapshot"):
+                sim_data._snapshot()

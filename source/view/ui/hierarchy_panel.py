@@ -7,9 +7,9 @@ from source.view.controllers.simulation_controller import SimulationController
 
 class HierarchyPanel(ttk.Frame):
     """
-    Иерархия объектов в стиле игрового движка.
-    Поддерживает добавление и удаление координатных плоскостей,
-    выбор объектов и контекстное меню.
+    Иерархия объектов сцены с поддержкой вложенных дочерних элементов.
+    Отображает структуру сцены (планеты и координатные системы) в виде дерева
+    и синхронизируется с объектами симуляции.
     """
     def __init__(self, parent, model: SceneModel, controller: SimulationController,
                  on_select_callback: Callable[[Optional[SceneObject]], None], *args, **kwargs):
@@ -18,9 +18,11 @@ class HierarchyPanel(ttk.Frame):
         self.controller = controller
         self.on_select_callback = on_select_callback
         self.selected_obj_id: Optional[str] = None
+        self._last_signature = None
 
         self._build_ui()
         self.refresh_tree()
+        self._start_sync_loop()
 
     def _build_ui(self):
         header_frame = ttk.Frame(self)
@@ -32,14 +34,6 @@ class HierarchyPanel(ttk.Frame):
             font=("Segoe UI", 9, "bold")
         )
         lbl_title.pack(side=tk.LEFT)
-
-        btn_add_plane = ttk.Button(
-            header_frame,
-            text="+ Plane",
-            width=7,
-            command=self._on_quick_add_plane
-        )
-        btn_add_plane.pack(side=tk.RIGHT)
 
         tree_frame = ttk.Frame(self)
         tree_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=2)
@@ -53,7 +47,7 @@ class HierarchyPanel(ttk.Frame):
         self.tree.heading("#0", text="Объект", anchor=tk.W)
         self.tree.heading("type", text="Тип", anchor=tk.W)
         self.tree.column("#0", stretch=True, minwidth=140, width=170)
-        self.tree.column("type", stretch=False, minwidth=70, width=80)
+        self.tree.column("type", stretch=False, minwidth=120, width=130)
 
         scroll_y = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscrollcommand=scroll_y.set)
@@ -67,35 +61,66 @@ class HierarchyPanel(ttk.Frame):
         self.context_menu = tk.Menu(self, tearoff=0)
 
     def refresh_tree(self, select_id: Optional[str] = None):
+        """
+        Полностью перерисовывает дерево объектов с учетом родительско-дочерних связей.
+        Дочерние элементы отображаются вложенными в свои родительские узлы.
+        """
         self.tree.delete(*self.tree.get_children())
-        all_objects = self.model.get_all()
+        root_objects = self.model.get_root_objects()
 
         target_item = None
-        for obj in all_objects:
-            type_label = "Планета" if obj.obj_type == "planet" else "Плоскость"
-            display_text = f"{obj.icon}  {obj.name}"
+
+        def insert_node(obj, parent_iid=""):
+            nonlocal target_item
+            type_label = "Планета" if getattr(obj, "obj_type", "") == "planet" else "Координатная система"
+            icon = getattr(obj, "icon", "🌍" if type_label == "Планета" else "📐")
+            display_text = f"{icon}  {obj.name}"
+
             item_id = self.tree.insert(
-                "",
+                parent_iid,
                 tk.END,
                 iid=obj.id,
                 text=display_text,
-                values=(type_label,)
+                values=(type_label,),
+                open=True
             )
+
             if select_id and obj.id == select_id:
                 target_item = item_id
+            elif not select_id and self.selected_obj_id and obj.id == self.selected_obj_id:
+                target_item = item_id
 
-        if target_item:
+            for child in getattr(obj, "children", []):
+                insert_node(child, parent_iid=obj.id)
+
+        for root_obj in root_objects:
+            insert_node(root_obj, parent_iid="")
+
+        self._last_signature = self._get_scene_signature()
+
+        if target_item and self.tree.exists(target_item):
             self.tree.selection_set(target_item)
             self.tree.focus(target_item)
-        elif all_objects and not self.selected_obj_id:
-            first_id = all_objects[0].id
-            self.tree.selection_set(first_id)
-            self.tree.focus(first_id)
+            self.selected_obj_id = target_item
+        else:
+            all_children = self.tree.get_children()
+            if all_children:
+                first_id = all_children[0]
+                self.tree.selection_set(first_id)
+                self.tree.focus(first_id)
+                self.selected_obj_id = first_id
+                self.on_select_callback(self.model.get_by_id(first_id))
+            else:
+                self.selected_obj_id = None
+                self.on_select_callback(None)
 
     def update_item_name(self, obj_id: str, new_name: str):
+        """Обновляет имя элемента в дереве без полной перерисовки."""
         obj = self.model.get_by_id(obj_id)
         if obj and self.tree.exists(obj_id):
-            self.tree.item(obj_id, text=f"{obj.icon}  {new_name}")
+            icon = getattr(obj, "icon", "📦")
+            self.tree.item(obj_id, text=f"{icon}  {new_name}")
+            self._last_signature = self._get_scene_signature()
 
     def _on_tree_select(self, event=None):
         selected = self.tree.selection()
@@ -119,18 +144,16 @@ class HierarchyPanel(ttk.Frame):
             obj = self.model.get_by_id(row_id)
             self.on_select_callback(obj)
 
-            plane_menu = tk.Menu(self.context_menu, tearoff=0)
-            plane_menu.add_command(label="Плоскость XY", command=lambda: self._add_plane_action("XY"))
-            plane_menu.add_command(label="Плоскость XZ", command=lambda: self._add_plane_action("XZ"))
-            plane_menu.add_command(label="Плоскость YZ", command=lambda: self._add_plane_action("YZ"))
-
-            self.context_menu.add_cascade(label="➕ Добавить плоскость (Plane)", menu=plane_menu)
+            self.context_menu.add_command(
+                label="➕ Добавить координатную систему",
+                command=self._on_context_add_coord_system
+            )
             self.context_menu.add_separator()
 
-            if obj and obj.can_delete:
+            if obj and getattr(obj, "can_delete", True):
                 self.context_menu.add_command(
-                    label=f"🗑 Удалить \"{obj.name}\"",
-                    command=lambda: self._delete_plane_action(obj.id)
+                    label=f"🗑 Удалить «{obj.name}»",
+                    command=lambda: self._on_context_delete_coord_system(obj.id)
                 )
             else:
                 self.context_menu.add_command(
@@ -138,31 +161,36 @@ class HierarchyPanel(ttk.Frame):
                     state=tk.DISABLED
                 )
         else:
-            plane_menu = tk.Menu(self.context_menu, tearoff=0)
-            plane_menu.add_command(label="Плоскость XY", command=lambda: self._add_plane_action("XY"))
-            plane_menu.add_command(label="Плоскость XZ", command=lambda: self._add_plane_action("XZ"))
-            plane_menu.add_command(label="Плоскость YZ", command=lambda: self._add_plane_action("YZ"))
-
-            self.context_menu.add_cascade(label="➕ Добавить плоскость (Plane)", menu=plane_menu)
+            self.context_menu.add_command(
+                label="➕ Добавить координатную систему",
+                command=self._on_context_add_coord_system
+            )
 
         self.context_menu.post(event.x_root, event.y_root)
 
-    def _on_quick_add_plane(self):
-        self._add_plane_action("XY")
+    def _on_context_add_coord_system(self):
+        """Интерфейсная функция-заглушка (не вызывает изменений в backend)."""
+        self.controller.notify_status("Добавление координатной системы (интерфейсная заглушка)")
 
-    def _add_plane_action(self, orientation: str):
-        plane = self.model.add_plane(orientation=orientation)
-        self.refresh_tree(select_id=plane.id)
-        self.controller.on_plane_added(plane)
+    def _on_context_delete_coord_system(self, obj_id: str):
+        """Интерфейсная функция-заглушка (не вызывает изменений в backend)."""
+        obj = self.model.get_by_id(obj_id)
+        name = obj.name if obj else obj_id
+        self.controller.notify_status(f"Удаление «{name}» (интерфейсная заглушка)")
 
-    def _delete_plane_action(self, plane_id: str):
-        success = self.model.remove_object(plane_id)
-        if success:
-            self.selected_obj_id = None
-            self.refresh_tree()
-            self.controller.on_plane_removed(plane_id)
-            sel = self.tree.selection()
-            if sel:
-                self.on_select_callback(self.model.get_by_id(sel[0]))
-            else:
-                self.on_select_callback(None)
+    def _start_sync_loop(self):
+        self._check_tree_sync()
+        self.after(250, self._start_sync_loop)
+
+    def _get_scene_signature(self):
+        all_objs = self.model.get_all()
+        return tuple(
+            (o.id, getattr(o, "name", ""), getattr(getattr(o, "parent", None), "id", None))
+            for o in all_objs
+        )
+
+    def _check_tree_sync(self):
+        current_sig = self._get_scene_signature()
+        if self._last_signature != current_sig:
+            self._last_signature = current_sig
+            self.refresh_tree(select_id=self.selected_obj_id)

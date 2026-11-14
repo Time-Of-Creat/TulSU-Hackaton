@@ -23,14 +23,17 @@ class MainWindow(tk.Tk):
 
         self._setup_styles()
 
-        self.model = SceneModel()
         if controller is not None:
             self.controller = controller
             self.controller.set_status_callback(self.update_status)
         else:
             self.controller = SimulationController(on_status_change=self.update_status)
 
+        self.model = SceneModel(backend=getattr(self.controller, "backend", None))
+        self.controller.on_scene_changed = self._on_scene_reloaded
+
         self._build_layout()
+        self._bind_shortcuts()
 
         self.controller.notify_status("Готов к работе. Выберите объект или запустите симуляцию.")
 
@@ -50,6 +53,11 @@ class MainWindow(tk.Tk):
         self.style.configure("Treeview.Heading", font=("Segoe UI", 9, "bold"))
         self.style.configure("Status.TLabel", font=("Segoe UI", 8))
 
+    def _bind_shortcuts(self):
+        self.bind_all("<Control-s>", lambda e: self.controller.file_save(self))
+        self.bind_all("<Control-S>", lambda e: self.controller.file_save_as(self))
+        self.bind_all("<Control-o>", lambda e: self.controller.file_load(self))
+
     def _build_layout(self):
         self.toolbar = TopToolbar(self, controller=self.controller)
         self.toolbar.pack(side=tk.TOP, fill=tk.X)
@@ -68,7 +76,7 @@ class MainWindow(tk.Tk):
 
         self.lbl_object_count = ttk.Label(
             self.status_bar,
-            text=f"Объектов: {len(self.model.get_all())}",
+            text=f"Объектов в сцене: {len(self.model.get_all())}",
             style="Status.TLabel"
         )
         self.lbl_object_count.pack(side=tk.RIGHT, padx=8)
@@ -104,12 +112,25 @@ class MainWindow(tk.Tk):
         self.inspector_panel.pack(fill=tk.BOTH, expand=True)
         self.paned.add(self.panel_right, weight=1)
 
+        first_sel = self.hierarchy_panel.tree.selection()
+        if first_sel:
+            self.inspector_panel.load_object(self.model.get_by_id(first_sel[0]))
+
     def _on_hierarchy_selection(self, obj):
-        self.inspector_panel.load_object(obj)
+        if hasattr(self, "inspector_panel"):
+            self.inspector_panel.load_object(obj)
         self._update_object_count()
 
     def _on_object_renamed(self, obj_id: str, new_name: str):
         self.hierarchy_panel.update_item_name(obj_id, new_name)
+
+    def _on_scene_reloaded(self):
+        self.hierarchy_panel.refresh_tree()
+        self._update_object_count()
+        if hasattr(self, "toolbar"):
+            self.toolbar.btn_run_reset.configure(text="▶ Запуск")
+            self.toolbar.btn_pause.configure(state=tk.DISABLED, text="⏸ Пауза")
+            self.toolbar.lbl_state.configure(text="Симуляция: Загружена")
 
     def _update_object_count(self):
         count = len(self.model.get_all())

@@ -1,3 +1,5 @@
+import uuid
+from typing import Dict, Any, List, Optional
 from .builtin_types.coords2 import Coords2
 
 
@@ -8,12 +10,26 @@ class Object:
     UI_ICON_COLOR = "#777777"
 
     def __init__(self, name: str, parent=None):
+        self.id = uuid.uuid4().hex[:8]
         self.name = name
-        self.parent: Object | None = parent
-        self.children: list[Object] = []
+        self.parent: Optional['Object'] = parent
+        self.children: List['Object'] = []
 
         self.local_position = Coords2(0, 0)
-        self.local_rotation_deg = 0
+        self.local_rotation_deg = 0.0
+        self.can_delete = True
+        self.obj_type = "object"
+        self.icon = "📦"
+
+    @property
+    def properties(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "pos_x": self.local_position.x,
+            "pos_y": self.local_position.y,
+            "pos_z": 0.0,
+            "rotation": self.local_rotation_deg,
+        }
 
     def process_step(self, dt: float):
         for child in self.children:
@@ -48,3 +64,10 @@ class Object:
         if self.CAN_HAVE_CHILDREN:
             self.children.append(obj)
             obj.parent = self
+
+    def remove_child(self, obj) -> bool:
+        if obj in self.children:
+            self.children.remove(obj)
+            obj.parent = None
+            return True
+        return False

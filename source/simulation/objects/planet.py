@@ -14,14 +14,42 @@ class Planet(Object):
         super().__init__(name, parent)
 
         self.mass = mass
-        self.density = 1
+        self.density = 1.0
 
         self.F = Coords2(0, 0)
         self.acceleration = Coords2(0, 0)
         self.velocity = Coords2(0, 0)
+        self.obj_type = "planet"
+        self.icon = "🌍"
+        self.can_delete = False
+        self.color = "#4A90E2"
+        self.is_fixed = False
+
+    @property
+    def properties(self) -> dict:
+        return {
+            "name": self.name,
+            "mass": self.mass,
+            "density": getattr(self, "density", 1.0),
+            "radius": self.calculate_radius(),
+            "pos_x": self.local_position.x,
+            "pos_y": self.local_position.y,
+            "pos_z": 0.0,
+            "vel_x": self.velocity.x,
+            "vel_y": self.velocity.y,
+            "vel_z": 0.0,
+            "color": getattr(self, "color", "#4A90E2"),
+            "is_fixed": getattr(self, "is_fixed", False),
+        }
 
     def process_step(self, dt: float):
         super().process_step(dt)
+
+        if getattr(self, "is_fixed", False):
+            self.velocity = Coords2(0, 0)
+            self.acceleration = Coords2(0, 0)
+            self.F = Coords2(0, 0)
+            return
 
         if self.mass != 0:
             self.acceleration = self.F / self.mass
@@ -34,7 +62,10 @@ class Planet(Object):
         self.F = Coords2(0, 0)
 
     def calculate_radius(self):
-        volume = self.mass * self.density
+        density = getattr(self, "density", 1.0)
+        if density <= 0:
+            density = 1.0
+        volume = self.mass / density
         return (3 * volume / (4 * math.pi)) ** (1 / 3)
 
     def calculate_gravity(self, other_planet):

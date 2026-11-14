@@ -23,6 +23,13 @@ class SimulationView(ttk.Frame):
         self._last_snapshot: List[Dict[str, Any]] = []
         self._configuration = None
         self._refresh_job = None
+
+        self.zoom_factor = 1.0
+        self.pan_x = 0.0
+        self.pan_y = 0.0
+        self._drag_start_x = 0
+        self._drag_start_y = 0
+
         self._build_ui()
         self._schedule_refresh()
 
@@ -51,6 +58,40 @@ class SimulationView(ttk.Frame):
         )
         self.canvas.pack(fill=tk.BOTH, expand=True, padx=4, pady=2)
         self.canvas.bind("<Configure>", self._on_resize)
+        self.canvas.bind("<MouseWheel>", self._on_mouse_wheel)
+        self.canvas.bind("<Button-4>", lambda e: self._on_mouse_wheel(e, delta=120))
+        self.canvas.bind("<Button-5>", lambda e: self._on_mouse_wheel(e, delta=-120))
+        self.canvas.bind("<ButtonPress-1>", self._on_pan_start)
+        self.canvas.bind("<B1-Motion>", self._on_pan_drag)
+        self.canvas.bind("<Double-Button-1>", self._on_reset_view)
+
+    def _on_mouse_wheel(self, event, delta=None):
+        if delta is None:
+            delta = event.delta
+        factor = 1.15 if delta > 0 else (1.0 / 1.15)
+        new_zoom = self.zoom_factor * factor
+        if 0.05 <= new_zoom <= 100.0:
+            self.zoom_factor = new_zoom
+            self._draw_scene(self._last_snapshot)
+
+    def _on_pan_start(self, event):
+        self._drag_start_x = event.x
+        self._drag_start_y = event.y
+
+    def _on_pan_drag(self, event):
+        dx = event.x - self._drag_start_x
+        dy = event.y - self._drag_start_y
+        self._drag_start_x = event.x
+        self._drag_start_y = event.y
+        self.pan_x += dx
+        self.pan_y += dy
+        self._draw_scene(self._last_snapshot)
+
+    def _on_reset_view(self, event=None):
+        self.zoom_factor = 1.0
+        self.pan_x = 0.0
+        self.pan_y = 0.0
+        self._draw_scene(self._last_snapshot)
 
     def _schedule_refresh(self):
         self._refresh_job = self.after(self.REFRESH_INTERVAL_MS, self._refresh)
@@ -149,7 +190,8 @@ class SimulationView(ttk.Frame):
         height = max(self.canvas.winfo_height(), 1)
         self.canvas.delete("all")
 
-        cx, cy = width / 2, height / 2
+        cx = width / 2 + self.pan_x
+        cy = height / 2 + self.pan_y
         self._draw_grid(width, height, cx, cy)
 
         planets = [obj for obj in objects if obj["type"] == "planet"]
@@ -158,13 +200,12 @@ class SimulationView(ttk.Frame):
             [max(abs(obj["x"]), abs(obj["y"])) for obj in drawable_objects] or [50.0]
         )
         coordinate_limit = max(max_coordinate * 1.25, 50.0)
-        scale = min(width, height) * 0.42 / coordinate_limit
+        scale = (min(width, height) * 0.42 / coordinate_limit) * self.zoom_factor
 
         self._draw_planes(objects, width, height, cx, cy, scale, coordinate_limit)
 
-        max_radius = max([planet["radius"] for planet in planets] or [1.0])
         for index, planet in enumerate(planets):
-            self._draw_planet(planet, index, cx, cy, scale, max_radius)
+            self._draw_planet(planet, index, cx, cy, scale)
 
         if not objects:
             self.canvas.create_text(
@@ -181,16 +222,18 @@ class SimulationView(ttk.Frame):
 
     def _draw_grid(self, width, height, cx, cy):
         step = 40
-        for x in range(0, int(width) + step, step):
+        offset_x = int(cx) % step
+        offset_y = int(cy) % step
+        for x in range(offset_x, int(width) + step, step):
             self.canvas.create_line(x, 0, x, height, fill=self.GRID_COLOR)
-        for y in range(0, int(height) + step, step):
+        for y in range(offset_y, int(height) + step, step):
             self.canvas.create_line(0, y, width, y, fill=self.GRID_COLOR)
 
     def _draw_axes(self, width, height, cx, cy, coordinate_limit, scale):
         self.canvas.create_line(0, cy, width, cy, fill=self.AXIS_COLOR, arrow=tk.LAST)
         self.canvas.create_line(cx, height, cx, 0, fill=self.AXIS_COLOR, arrow=tk.LAST)
-        self.canvas.create_text(width - 14, cy - 12, text="X", fill=self.TEXT_COLOR)
-        self.canvas.create_text(cx + 12, 12, text="Y", fill=self.TEXT_COLOR)
+        self.canvas.create_text(width - 14, cy - 12, text="X (м)", fill=self.TEXT_COLOR)
+        self.canvas.create_text(cx + 12, 12, text="Y (м)", fill=self.TEXT_COLOR)
         self.canvas.create_text(
             cx + 8, cy + 14, text="0", fill="#8e8e98", anchor=tk.NW
         )
@@ -284,23 +327,22 @@ class SimulationView(ttk.Frame):
 
         self.canvas.create_text(
             origin_x + axis_length - 8, origin_y - 14,
-            text="X", fill=color
+            text="X (м)", fill=color
         )
         self.canvas.create_text(
             origin_x + 8, origin_y - axis_length + 8,
-            text="Y", fill=color
+            text="Y (м)", fill=color
         )
 
-    def _draw_planet(self, planet, index, cx, cy, scale, max_radius):
+    def _draw_planet(self, planet, index, cx, cy, scale):
         x = cx + planet["x"] * scale
         y = cy - planet["y"] * scale
 
-        physical_radius = planet["radius"]
-        if max_radius > 0 and physical_radius > 0:
-            radius = 4.0 + 20.0 * math.sqrt(physical_radius / max_radius)
-        else:
-            radius = 7.0
-        radius = min(radius, 24.0)
+        physical_radius = self._number(planet.get("radius", 0.0))
+        # Радиус отрисовки строго масштабируется вместе со сценой
+        radius = physical_radius * scale
+        # Минимальный порог видимости, чтобы тело оставалось различимым при сильном отдалении
+        radius = max(radius, 2.0)
 
         color = self._planet_color(planet["name"], index)
         self.canvas.create_oval(
