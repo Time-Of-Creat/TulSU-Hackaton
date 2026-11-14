@@ -49,6 +49,9 @@ class Simulation:
         while accumulator >= self.fixed_dt and steps < 20:
             with self.lock:
                 self.simulation_data.process_instance_step(self.fixed_dt)
+                if self.simulation_data.is_collision:
+                    self.running = False
+                    return 0.0
             accumulator -= self.fixed_dt
             steps += 1
         return accumulator

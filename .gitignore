@@ -180,3 +180,11 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 /.idea
+
+
+.vs/
+*.suo
+*.user
+*.sln.docstates
+*.vsidx
+*.sqlite
