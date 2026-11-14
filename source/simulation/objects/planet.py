@@ -14,6 +14,8 @@ class Planet(Object):
         super().__init__(name, parent)
 
         self.mass = mass
+        self.density = 1
+
         self.F = Coords2(0, 0)
         self.acceleration = Coords2(0, 0)
         self.velocity = Coords2(0, 0)
@@ -30,6 +32,10 @@ class Planet(Object):
         self.local_position += self.velocity * dt
 
         self.F = Coords2(0, 0)
+
+    def calculate_radius(self):
+        volume = self.mass * self.density
+        return (3 * volume / (4 * math.pi)) ** (1 / 3)
 
     def calculate_gravity(self, other_planet):
         p1 = self.get_global_position()
