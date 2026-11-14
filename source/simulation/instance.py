@@ -10,12 +10,15 @@ class Instance:
         self._add_temporary_demo_objects()
 
     def _add_temporary_demo_objects(self):
-        sun = Planet("Солнце", mass=1000)
+        sun = Planet("Солнце", mass=1.000e+12)
+        sun.density = 1.000e+12
         sun.color = "#FFB703"
-        earth = Planet("Земля", mass=1)
+        earth = Planet("Земля", mass=1.000e+12)
         earth.color = "#219EBC"
-        mars = Planet("Марс", mass=0.1)
+        earth.density = 1.000e+12
+        mars = Planet("Марс", mass=1.000e+12)
         mars.color = "#FB8500"
+        mars.density = 1.000e+12
 
         sun.local_position = Coords2(0, 0)
 
