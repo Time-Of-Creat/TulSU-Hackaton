@@ -37,6 +37,12 @@ class MainWindow(tk.Tk):
 
         self.controller.notify_status("Готов к работе. Выберите объект или запустите симуляцию.")
 
+    def refresh_scene(self):
+        """Обновляет интерфейс после изменений в модели данных."""
+        # Проверяем, существует ли панель иерархии, и обновляем её
+        if hasattr(self, "hierarchy_panel"):
+            self.hierarchy_panel.refresh_tree()
+
     def _setup_styles(self):
         self.style = ttk.Style(self)
         try:

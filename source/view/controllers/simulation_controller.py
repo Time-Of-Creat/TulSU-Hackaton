@@ -296,3 +296,77 @@ class SimulationController:
     def on_property_changed(self, obj_id: str, key: str, value):
         """Обработчик изменения параметра объекта."""
         self.notify_status(f"Параметр {key} изменен на: {value}")
+
+    def add_coordinate_system(self, parent_id: Optional[str] = None):
+        """
+        Создает координатную систему в Instance.
+        Если parent_id передан — добавляет как дочернюю.
+        """
+        if not self.backend:
+            self.notify_status("Ошибка: backend не инициализирован")
+            return
+
+        sim_data = getattr(self.backend, "simulation_data", None)
+        if not sim_data or not hasattr(sim_data, "instance"):
+            self.notify_status("Ошибка: модель данных недоступна")
+            return
+
+        try:
+            lock = getattr(self.backend, "lock", None)
+            with (lock if lock else nullcontext()):
+                # Генерируем уникальное имя
+                instance = sim_data.instance
+                count = sum(
+                    1 for o in instance.get_all_objects()
+                    if isinstance(o, Plane)
+                )
+                name = f"Координатная система {count + 1}"
+
+                # Создаем плоскость через метод Instance
+                new_plane = instance.add_plane(name=name, parent_id=parent_id)
+
+            # Обновляем UI
+            if self.on_scene_changed:
+                self.on_scene_changed()
+
+            self.notify_status(f"Добавлена: {new_plane.name}")
+        except Exception as e:
+            self.notify_status(f"Ошибка добавления: {e}")
+
+    def remove_coordinate_system(self, obj_id: str):
+        """Удаляет координатную систему по ID."""
+        if not self.backend:
+            self.notify_status("Ошибка: backend не инициализирован")
+            return
+
+        sim_data = getattr(self.backend, "simulation_data", None)
+        if not sim_data or not hasattr(sim_data, "instance"):
+            self.notify_status("Ошибка: модель данных недоступна")
+            return
+
+        try:
+            lock = getattr(self.backend, "lock", None)
+            with (lock if lock else nullcontext()):
+                instance = sim_data.instance
+                obj = instance.get_object_by_id(obj_id)
+
+                if not obj:
+                    self.notify_status(f"Объект {obj_id} не найден")
+                    return
+
+                # Проверка: планеты удалять нельзя
+                if isinstance(obj, Planet) and not isinstance(obj, Plane):
+                    self.notify_status(f"Удаление планет запрещено: {obj.name}")
+                    return
+
+                name = obj.name
+                success = instance.remove_object(obj_id)
+
+            if success:
+                if self.on_scene_changed:
+                    self.on_scene_changed()
+                self.notify_status(f"Удалена: {name}")
+            else:
+                self.notify_status(f"Не удалось удалить {obj_id}")
+        except Exception as e:
+            self.notify_status(f"Ошибка удаления: {e}")

@@ -144,9 +144,10 @@ class HierarchyPanel(ttk.Frame):
             obj = self.model.get_by_id(row_id)
             self.on_select_callback(obj)
 
+            # Передаем ID родителя (row_id), чтобы добавить как дочерний
             self.context_menu.add_command(
                 label="➕ Добавить координатную систему",
-                command=self._on_context_add_coord_system
+                command=lambda: self._on_context_add_coord_system(parent_id=row_id)
             )
             self.context_menu.add_separator()
 
@@ -161,22 +162,21 @@ class HierarchyPanel(ttk.Frame):
                     state=tk.DISABLED
                 )
         else:
+            # Клик по пустому месту — parent_id=None (добавляем в корень)
             self.context_menu.add_command(
                 label="➕ Добавить координатную систему",
-                command=self._on_context_add_coord_system
+                command=lambda: self._on_context_add_coord_system(parent_id=None)
             )
 
         self.context_menu.post(event.x_root, event.y_root)
 
-    def _on_context_add_coord_system(self):
-        """Интерфейсная функция-заглушка (не вызывает изменений в backend)."""
-        self.controller.notify_status("Добавление координатной системы (интерфейсная заглушка)")
+    def _on_context_add_coord_system(self, parent_id: Optional[str] = None):
+        """Вызывает создание координатной системы через контроллер."""
+        self.controller.add_coordinate_system(parent_id)
 
     def _on_context_delete_coord_system(self, obj_id: str):
-        """Интерфейсная функция-заглушка (не вызывает изменений в backend)."""
-        obj = self.model.get_by_id(obj_id)
-        name = obj.name if obj else obj_id
-        self.controller.notify_status(f"Удаление «{name}» (интерфейсная заглушка)")
+        """Вызывает удаление координатной системы через контроллер."""
+        self.controller.remove_coordinate_system(obj_id)
 
     def _start_sync_loop(self):
         self._check_tree_sync()

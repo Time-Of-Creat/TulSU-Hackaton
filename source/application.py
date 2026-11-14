@@ -10,6 +10,9 @@ class Application:
         self.frontend: MainWindow = MainWindow(controller=self.controller)
         self.window: MainWindow = self.frontend
 
+        # ВАЖНО: связываем контроллер с обновлением UI
+        self.controller.on_scene_changed = self.frontend.refresh_scene
+
         self.frontend.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _on_close(self):
