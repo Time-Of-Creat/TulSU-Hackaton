@@ -1,8 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
 from typing import Callable, Optional
-from src.models.scene_objects import SceneModel, SceneObject
-from src.controllers.simulation_controller import SimulationController
+from source.view.models.scene_objects import SceneModel, SceneObject
+from source.view.controllers.simulation_controller import SimulationController
 
 
 class HierarchyPanel(ttk.Frame):

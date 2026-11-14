@@ -1,10 +1,9 @@
-import sys
-from src.ui.main_window import MainWindow
+from source.application import Application
 
 
 def main():
-    app = MainWindow()
-    app.mainloop()
+    app = Application()
+    app.run()
 
 
 if __name__ == "__main__":

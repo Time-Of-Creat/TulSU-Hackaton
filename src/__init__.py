@@ -1,3 +1,0 @@
-"""
-Educational Simulation Suite
-"""

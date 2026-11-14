@@ -1,11 +1,12 @@
 import tkinter as tk
 from tkinter import ttk
-from src.models.scene_objects import SceneModel
-from src.controllers.simulation_controller import SimulationController
-from src.ui.top_toolbar import TopToolbar
-from src.ui.hierarchy_panel import HierarchyPanel
-from src.ui.simulation_view import SimulationView
-from src.ui.inspector_panel import InspectorPanel
+from typing import Optional
+from source.view.models.scene_objects import SceneModel
+from source.view.controllers.simulation_controller import SimulationController
+from source.view.ui.top_toolbar import TopToolbar
+from source.view.ui.hierarchy_panel import HierarchyPanel
+from source.view.ui.simulation_view import SimulationView
+from source.view.ui.inspector_panel import InspectorPanel
 
 
 class MainWindow(tk.Tk):
@@ -18,7 +19,7 @@ class MainWindow(tk.Tk):
     - Right sector: Inspector/settings panel.
     - Bottom: Status bar.
     """
-    def __init__(self):
+    def __init__(self, controller: Optional[SimulationController] = None):
         super().__init__()
 
         self.title("Физическая симуляция — Лабораторный комплекс")
@@ -30,7 +31,11 @@ class MainWindow(tk.Tk):
 
         # Instantiate Models & Controllers
         self.model = SceneModel()
-        self.controller = SimulationController(on_status_change=self.update_status)
+        if controller is not None:
+            self.controller = controller
+            self.controller.set_status_callback(self.update_status)
+        else:
+            self.controller = SimulationController(on_status_change=self.update_status)
 
         self._build_layout()
 

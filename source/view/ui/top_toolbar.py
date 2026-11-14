@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from typing import Callable
-from src.controllers.simulation_controller import SimulationController
+from source.view.controllers.simulation_controller import SimulationController
 
 
 class TopToolbar(ttk.Frame):

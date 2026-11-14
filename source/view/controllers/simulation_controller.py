@@ -1,4 +1,5 @@
-from typing import Callable, Optional
+import threading
+from typing import Callable, Optional, Any
 import tkinter.filedialog as fd
 import tkinter.messagebox as mb
 
@@ -8,10 +9,12 @@ class SimulationController:
     Simulation Controller and Action Stubs.
     Responsible for interface state changes and interaction hooks for simulation.
     """
-    def __init__(self, on_status_change: Optional[Callable[[str], None]] = None):
+    def __init__(self, on_status_change: Optional[Callable[[str], None]] = None, backend: Optional[Any] = None):
         self.is_running: bool = False
         self.is_paused: bool = False
         self._on_status_change = on_status_change
+        self.backend = backend
+        self._sim_thread: Optional[threading.Thread] = None
 
     def set_status_callback(self, callback: Callable[[str], None]):
         self._on_status_change = callback
@@ -84,22 +87,28 @@ class SimulationController:
             self._resume_simulation_hook()
         return self.is_paused
 
-    # --- Hooks for Max's Simulation Engine ---
+    # --- Hooks for Simulation Engine ---
     def _start_simulation_hook(self):
-        """Empty hook: Invoked when simulation starts."""
-        pass
+        """Invoked when simulation starts."""
+        if self.backend and not getattr(self.backend, "running", False):
+            self._sim_thread = threading.Thread(target=self.backend.start_simulation, daemon=True)
+            self._sim_thread.start()
 
     def _reset_simulation_hook(self):
-        """Empty hook: Invoked when simulation resets."""
-        pass
+        """Invoked when simulation resets."""
+        if self.backend and hasattr(self.backend, "reset_simulation"):
+            self.backend.reset_simulation()
 
     def _pause_simulation_hook(self):
-        """Empty hook: Invoked when pause is toggled on."""
-        pass
+        """Invoked when pause is toggled on."""
+        if self.backend and hasattr(self.backend, "pause_simulation"):
+            self.backend.pause_simulation()
 
     def _resume_simulation_hook(self):
-        """Empty hook: Invoked when pause is toggled off."""
-        pass
+        """Invoked when pause is toggled off."""
+        if self.backend and not getattr(self.backend, "running", False):
+            self._sim_thread = threading.Thread(target=self.backend.start_simulation, daemon=True)
+            self._sim_thread.start()
 
     def on_plane_added(self, plane):
         """Empty hook: Plane added to scene."""
