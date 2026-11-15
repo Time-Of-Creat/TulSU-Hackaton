@@ -17,7 +17,7 @@ class MainWindow(tk.Tk):
     def __init__(self, controller: Optional[SimulationController] = None):
         super().__init__()
 
-        self.title("Физическая симуляция — Лабораторный комплекс")
+        self.title("Физическая симуляция")
         self.geometry("1120x720")
         self.minsize(850, 520)
 
